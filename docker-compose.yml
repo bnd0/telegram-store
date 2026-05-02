@@ -1,0 +1,89 @@
+version: "3.9"
+
+# ── Full stack: Postgres + Redis + FastAPI backend + React/Nginx frontend ─────
+#
+# Usage:
+#   docker compose up --build          # first run (builds images)
+#   docker compose up                  # subsequent runs
+#   docker compose down -v             # stop + wipe volumes
+#
+# After startup:
+#   Frontend  → http://localhost:3000
+#   API docs  → http://localhost:8000/docs
+#   Health    → http://localhost:8000/health
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:18-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       tgstore
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"         # exposed so you can inspect with psql/TablePlus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tgstore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: valkey/valkey:9-alpine3.23
+    restart: unless-stopped
+    ports:
+      - "6379:6379"         # exposed so you can inspect with redis-cli
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/tgstore
+      REDIS_URL:    redis://redis:6379
+      ENVIRONMENT:  development
+      # Allow requests from the nginx frontend container + local browser
+      CORS_ORIGINS: "http://localhost:3000,http://frontend"
+    ports:
+      - "8000:8000"         # direct API access + Swagger UI
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Mount source for live-reload in dev (comment out for production)
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── React Frontend (Nginx) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # /api/v1 is proxied by nginx to the backend container — no hard-coded
+        # hostname needed in the JS bundle.
+        VITE_API_BASE: /api/v1
+    restart: unless-stopped
+    ports:
+      - "3000:80"           # visit http://localhost:3000
+    depends_on:
+      - backend
+    # nginx.conf is baked into the image at build time; no volume needed.
+
+volumes:
+  pgdata:

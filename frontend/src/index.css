@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Telegram-like scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2B3A4A; border-radius: 99px; }
+
+/* Prevent iOS rubber-band on the body but allow inner scroll */
+html, body { overscroll-behavior: none; }
+body { background: #17212B; color: #F5F5F5; font-family: 'DM Sans', sans-serif; }
+
+/* Smooth scrolling for category tabs */
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Star rating */
+.star-filled { color: #FDB931; }
+.star-empty  { color: #3A4A5C; }
+
+/* Tap highlight removal (mobile WebView) */
+* { -webkit-tap-highlight-color: transparent; }
