@@ -1,16 +1,10 @@
 """
 schemas.py — Pydantic v2 request and response models.
-
-These are separate from the SQLAlchemy ORM models in database.py.
-FastAPI uses these for:
-  • Input validation  (request body / query params)
-  • Output serialisation (response_model=)
-  • Auto-generated OpenAPI docs
 """
 
 from __future__ import annotations
 from datetime import datetime
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field
 
 
 # ── Category ──────────────────────────────────────────────────────────────────
@@ -26,7 +20,6 @@ class CategoryOut(BaseModel):
 
 # ── App ───────────────────────────────────────────────────────────────────────
 class AppSummary(BaseModel):
-    """Lightweight card shown in list / search results."""
     id: int
     name: str
     slug: str
@@ -45,7 +38,6 @@ class AppSummary(BaseModel):
 
 
 class AppDetail(AppSummary):
-    """Full detail page — adds banner and timestamps."""
     banner_url: str | None
     created_at: datetime
 
@@ -62,6 +54,21 @@ class AppCreate(BaseModel):
     developer: str = Field(..., min_length=2, max_length=120)
     category_id: int
     is_featured: bool = False
+    is_verified: bool = False
+
+
+class AppUpdate(BaseModel):
+    """All fields optional — only provided fields are updated (PATCH semantics)."""
+    name: str | None = Field(None, min_length=2, max_length=120)
+    slug: str | None = Field(None, min_length=2, max_length=120, pattern=r"^[a-z0-9-]+$")
+    description: str | None = Field(None, min_length=10)
+    icon_url: str | None = None
+    banner_url: str | None = None
+    telegram_url: str | None = None
+    developer: str | None = Field(None, min_length=2, max_length=120)
+    category_id: int | None = None
+    is_featured: bool | None = None
+    is_verified: bool | None = None
 
 
 # ── Review ────────────────────────────────────────────────────────────────────
@@ -96,7 +103,7 @@ class FavoriteOut(BaseModel):
     is_favorited: bool
 
 
-# ── Generic responses ─────────────────────────────────────────────────────────
+# ── Generic ───────────────────────────────────────────────────────────────────
 class PaginatedApps(BaseModel):
     total: int
     page: int
